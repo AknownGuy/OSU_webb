@@ -1,95 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
   <title>Mini Osu</title>
   <style>
-    body {
+    html, body {
       margin: 0;
+      padding: 0;
       overflow: hidden;
-      background: #111;
+      background: #222;
     }
     canvas {
       display: block;
-      margin: 0 auto;
-      background: #222;
     }
-    #startBtn {
+    #start {
       position: absolute;
       top: 10px;
       left: 10px;
-      padding: 10px;
-      background: #fff;
+      padding: 8px 12px;
+      background: white;
+      color: black;
+      font-weight: bold;
       border: none;
+      z-index: 10;
       cursor: pointer;
-      z-index: 1000;
     }
   </style>
 </head>
 <body>
-  <button id="startBtn">Start</button>
-  <canvas id="game"></canvas>
+  <button id="start">Start</button>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
   <script>
-    const canvas = document.getElementById('game');
+    const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const startButton = document.getElementById('start');
 
-    let map = [];
+    let audio = new Audio('audio.mp3');
+    let beatmap = [];
     let startTime = 0;
-    let audio;
+    let activeCircles = [];
 
-    fetch('beatmap.json')
-      .then(res => res.json())
-      .then(data => map = data);
+    async function loadBeatmap() {
+      const res = await fetch('beatmap.json');
+      beatmap = await res.json();
+    }
 
-    document.getElementById('startBtn').onclick = () => {
-      audio = new Audio('audio.mp3');
-      audio.play();
-      startTime = performance.now();
-      requestAnimationFrame(update);
-    };
+    function drawCircle(x, y, opacity = 1) {
+      ctx.globalAlpha = opacity;
+      ctx.beginPath();
+      ctx.arc(x * canvas.width, y * canvas.height, 40, 0, Math.PI * 2);
+      ctx.fillStyle = 'white';
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
 
-    function update(timestamp) {
-      const currentTime = timestamp - startTime;
+    function update() {
+      const currentTime = performance.now() - startTime;
+
+      // Push new circles
+      while (beatmap.length > 0 && currentTime >= beatmap[0].time) {
+        activeCircles.push({ ...beatmap.shift(), createdAt: currentTime });
+      }
+
+      // Clear screen
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      map.forEach(note => {
-        const appearTime = note.time - 1000;
-        const disappearTime = note.time + 500;
-        if (currentTime >= appearTime && currentTime <= disappearTime) {
-          const radius = 40;
-          const x = note.x * canvas.width;
-          const y = note.y * canvas.height;
-          ctx.beginPath();
-          ctx.arc(x, y, radius, 0, Math.PI * 2);
-          ctx.strokeStyle = '#0f0';
-          ctx.lineWidth = 4;
-          ctx.stroke();
-        }
+      // Draw active circles
+      activeCircles = activeCircles.filter(circle => {
+        const age = currentTime - circle.createdAt;
+        if (age > 1000) return false; // disappear after 1 second
+        drawCircle(circle.x, circle.y, 1 - age / 1000);
+        return true;
       });
 
       requestAnimationFrame(update);
     }
 
-    canvas.addEventListener('mousedown', (e) => {
-      const clickX = e.clientX;
-      const clickY = e.clientY;
-      const currentTime = performance.now() - startTime;
-
-      map.forEach((note) => {
-        const x = note.x * canvas.width;
-        const y = note.y * canvas.height;
-        const dx = clickX - x;
-        const dy = clickY - y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const timeDiff = Math.abs(currentTime - note.time);
-        if (distance < 40 && timeDiff < 300) {
-          console.log('Hit!');
-        }
-      });
-    });
+    startButton.onclick = async () => {
+      startButton.style.display = 'none';
+      await loadBeatmap();
+      startTime = performance.now();
+      audio.play();
+      requestAnimationFrame(update);
+    };
   </script>
 </body>
 </html>
