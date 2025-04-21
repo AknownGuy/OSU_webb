@@ -1,1 +1,90 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beatmap Editor</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: sans-serif;
+      text-align: center;
+    }
+    #gameCanvas {
+      display: block;
+      margin: 10px auto;
+      background: #222;
+    }
+    #controls {
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Beatmap Editor</h1>
+  <div id="controls">
+    <input type="file" id="audioLoader" accept="audio/*" />
+    <button onclick="playAudio()">Play</button>
+    <button onclick="exportMap()">Export Beatmap</button>
+  </div>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const audioLoader = document.getElementById('audioLoader');
+    let audio = null;
+    let audioStartTime = 0;
+    let beatmap = [];
+
+    canvas.addEventListener('click', (e) => {
+      if (!audio || audio.paused) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / canvas.width;
+      const y = (e.clientY - rect.top) / canvas.height;
+      const time = Math.floor((performance.now() - audioStartTime));
+      beatmap.push({ time, x, y });
+    });
+
+    function playAudio() {
+      if (!audio) return;
+      audio.currentTime = 0;
+      audio.play();
+      audioStartTime = performance.now();
+    }
+
+    function exportMap() {
+      const json = JSON.stringify(beatmap, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'beatmap.json';
+      link.click();
+    }
+
+    audioLoader.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      audio = new Audio(url);
+    });
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      beatmap.forEach(note => {
+        const x = note.x * canvas.width;
+        const y = note.y * canvas.height;
+        ctx.beginPath();
+        ctx.arc(x, y, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#0f0';
+        ctx.fill();
+      });
+      requestAnimationFrame(draw);
+    }
+    draw();
+  </script>
+</body>
+  </html>
