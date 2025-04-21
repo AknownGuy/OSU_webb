@@ -1,1 +1,96 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini Osu</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #222;
+    }
+    #startBtn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 10px;
+      background: #fff;
+      border: none;
+      cursor: pointer;
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+  <button id="startBtn">Start</button>
+  <canvas id="game"></canvas>
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let map = [];
+    let startTime = 0;
+    let audio;
+
+    fetch('beatmap.json')
+      .then(res => res.json())
+      .then(data => map = data);
+
+    document.getElementById('startBtn').onclick = () => {
+      audio = new Audio('audio.mp3');
+      audio.play();
+      startTime = performance.now();
+      requestAnimationFrame(update);
+    };
+
+    function update(timestamp) {
+      const currentTime = timestamp - startTime;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      map.forEach(note => {
+        const appearTime = note.time - 1000;
+        const disappearTime = note.time + 500;
+        if (currentTime >= appearTime && currentTime <= disappearTime) {
+          const radius = 40;
+          const x = note.x * canvas.width;
+          const y = note.y * canvas.height;
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.strokeStyle = '#0f0';
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
+      });
+
+      requestAnimationFrame(update);
+    }
+
+    canvas.addEventListener('mousedown', (e) => {
+      const clickX = e.clientX;
+      const clickY = e.clientY;
+      const currentTime = performance.now() - startTime;
+
+      map.forEach((note) => {
+        const x = note.x * canvas.width;
+        const y = note.y * canvas.height;
+        const dx = clickX - x;
+        const dy = clickY - y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const timeDiff = Math.abs(currentTime - note.time);
+        if (distance < 40 && timeDiff < 300) {
+          console.log('Hit!');
+        }
+      });
+    });
+  </script>
+</body>
+                               </html>
